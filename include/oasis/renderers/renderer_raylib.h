@@ -1,7 +1,7 @@
 #ifndef RENDERER_RAYLIB_H
 #define RENDERER_RAYLIB_H
 
-#if _STDC_VERSION_ < 199901L
+#if __STDC_VERSION__ < 199901L
 #error "This program requires C99, and needs to compile with -std=c99"
 #endif
 
@@ -19,8 +19,6 @@
     .b = (unsigned char)roundf(color.b), .a = (unsigned char)roundf(color.a)   \
   }
 
-Camera Raylib_camera;
-
 typedef enum { CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL } CustomLayoutElementType;
 
 typedef struct {
@@ -34,22 +32,23 @@ typedef struct {
   CustomLayoutElementType type;
   union {
     CustomLayoutElement_3DModel model;
-  } customData;
+  } custom_data;
 } CustomLayoutElement;
 
-Ray GetScreenToWorldPointWithZDistance(Vector2 position, Camera camera,
-                                       int screenWidth, int screenHeight,
-                                       float zDistance);
+Ray get_screen_to_world_point_with_z_distance(Vector2 position, Camera camera,
+                                              int screen_width,
+                                              int screen_height,
+                                              float z_distance);
 
-Clay_Dimensions Raylib_MeasureText(Clay_StringSlice text,
-                                   Clay_TextElementConfig *config,
-                                   void *userData);
+Clay_Dimensions raylib_measure_text(Clay_StringSlice text,
+                                    Clay_TextElementConfig *config,
+                                    void *user_data);
 
-void Clay_Raylib_Initialize(int width, int height, const char *title,
+void clay_raylib_initialize(int width, int height, const char *title,
                             unsigned int flags);
 
-void Clay_Raylib_Close(void);
+void clay_raylib_close(void);
 
-void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands, Font *fonts);
+void clay_raylib_render(Clay_RenderCommandArray render_commands, Font *fonts);
 
 #endif

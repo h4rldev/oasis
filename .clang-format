@@ -1,0 +1,14 @@
+BasedOnStyle: LLVM
+IndentWidth: 2
+BreakBeforeBraces: Attach
+ColumnLimit: 80
+PointerAlignment: Right
+ContinuationIndentWidth: 2
+UseTab: Never
+AlignConsecutiveMacros: true
+AlignEscapedNewlines: Left
+IndentPPDirectives: AfterHash
+MacroBlockBegin: 'MAP$|_BEGIN$|START_WRAPPER$'
+MacroBlockEnd: '_END$|END_WRAPPER$'
+# BreakBeforeBraces: Custom
+# BreakMultiLineMacros: Consistent

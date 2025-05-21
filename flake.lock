@@ -5,11 +5,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1747520655,
-        "narHash": "sha256-4K226WuIPKVSXvLhQg4E/6GDAFcKnSZGq0s8OTlgnpU=",
+        "lastModified": 1747711523,
+        "narHash": "sha256-utF7gdBH5xybkig5Y+HGEwDGozttjmdil2dbj7WDerY=",
         "owner": "h4rldev",
         "repo": "clay-renderers-small-fixes",
-        "rev": "890e952561f9cbb4429768eabd452fa005d24487",
+        "rev": "9f851872b97ff8b4e7614bd2c239a3fd6eb7b6d7",
         "type": "github"
       },
       "original": {
@@ -55,11 +55,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1747179050,
-        "narHash": "sha256-qhFMmDkeJX9KJwr5H32f1r7Prs7XbQWtO0h3V0a0rFY=",
+        "lastModified": 1747542820,
+        "narHash": "sha256-GaOZntlJ6gPPbbkTLjbd8BMWaDYafhuuYRNrxCGnPJw=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "adaa24fbf46737f3f1b5497bf64bae750f82942e",
+        "rev": "292fa7d4f6519c074f0a50394dbbe69859bb6043",
         "type": "github"
       },
       "original": {
