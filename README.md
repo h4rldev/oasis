@@ -7,7 +7,7 @@ A media and music player written in C, using [clay](https://github.com/nicbarker
 
 ## Where does the name Oasis come from?
 
-The name Oasis is a reference to the movie [Ready Player One](https://en.wikipedia.org/wiki/Ready_Player_One), which is a game about a virtual reality game.
+The name Oasis is a reference to [the novel by Ernest Cline](https://en.wikipedia.org/wiki/Ready_Player_One), and [the film by Steven Spielberg](https://en.wikipedia.org/wiki/Ready_Player_One_(film)).
 
 It has no real connection to the project, other than the name, and it's purely just cause I like the movie, and it's a cool name.
 

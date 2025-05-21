@@ -1,11 +1,65 @@
 #include <clay.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include <oasis/utils.h>
 
+oasis_result oasis_log(FILE *file, log_level level, const char *format, ...) {
+  char log_buffer[2048];
+  char va_buffer[1024];
+  char time_buffer[32];
+  char prefix[32];
+
+  time_t now = time(NULL);
+  struct tm *time_info = localtime(&now);
+  strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%d %H:%M:%S", time_info);
+
+  va_list args;
+
+  switch (level) {
+  case LOG_LEVEL_DEBUG:
+    strcpy(prefix, "DEBUG");
+    break;
+  case LOG_LEVEL_INFO:
+    strcpy(prefix, "INFO");
+    break;
+  case LOG_LEVEL_WARN:
+    strcpy(prefix, "WARN");
+    break;
+  case LOG_LEVEL_ERROR:
+    strcpy(prefix, "ERROR");
+    break;
+  default:
+    strcpy(prefix, "INFO");
+    break;
+  }
+
+  if (file == NULL) {
+    file = stderr;
+  }
+
+  va_start(args, format);
+  vsnprintf(va_buffer, sizeof(va_buffer), format, args);
+  snprintf(log_buffer, sizeof(log_buffer), "[%s] OASIS - %s: %s", time_buffer,
+           prefix, va_buffer);
+
+  if (fprintf(file, "%s", log_buffer) <= 0) {
+    oasis_log(NULL, LOG_LEVEL_ERROR, "Error writing log message");
+    va_end(args);
+    return OASIS_ERROR;
+  }
+
+  va_end(args);
+  return OASIS_SUCCESS;
+}
+
 void handle_error(Clay_ErrorData error_data) {
-  fprintf(stderr, "Error: %s\n", error_data.errorText.chars);
+  const char *error_text = error_data.errorText.chars;
+
+  if (oasis_log(NULL, LOG_LEVEL_ERROR, "%s", error_text != OASIS_SUCCESS))
+    fprintf(stderr, "Error: %s\n", error_data.errorText.chars);
 }
 
 char *serialize_error_text(Clay_ErrorType error_type) {

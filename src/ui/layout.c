@@ -74,8 +74,9 @@ void button_0(Clay_String text, Clay_Color color) {
 
     if (pressed0) {
       actual_color = colors[rand() % 6];
-      printf("button_0: pressed and changing color to %s\n",
-             clay_color_to_hex(actual_color));
+      oasis_log(stdout, LOG_LEVEL_INFO,
+                "button_0: pressed and changing color to %s\n",
+                clay_color_to_hex(actual_color));
       color_changed = true;
       pressed0 = false;
     }
@@ -110,8 +111,9 @@ void button_1(Clay_String text, Clay_Color color) {
 
     if (pressed1) {
       actual_color = colors[rand() % 6];
-      printf("button_1: pressed and changing color to %s\n",
-             clay_color_to_hex(actual_color));
+      oasis_log(stdout, LOG_LEVEL_INFO,
+                "button_1: pressed and changing color to %s\n",
+                clay_color_to_hex(actual_color));
       color_changed = true;
       pressed1 = false;
     }
