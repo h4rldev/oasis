@@ -7,26 +7,83 @@
 set -ueo pipefail
 # set -x
 
+COLORS=true # set to false to disable colors
+
 C_FLAGS="-Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -pedantic -std=c99 -O2 $(pkg-config --cflags clay)"
-LD_FLAGS="-lm"
+LD_FLAGS="-lm -lbsd $(pkg-config --libs libavcodec libavformat libavutil)"
 
 INCLUDE_DIRS="-I./include"
 C_FILES=""
 O_FILES=""
-UI_DEBUG=false
+DEBUG=false
 
+# Planned renderers are: raylib, sdl2, sdl3, sokol, vulkan, cairo, wasm
+SUPPORTED_RENDERERS=("raylib")
 RENDERER="raylib" # default renderer
 
+if ${COLORS}; then
+  ESCAPE=$(printf "\e")
+	RED="${ESCAPE}[0;31m"
+	GREEN="${ESCAPE}[0;32m"
+	YELLOW="${ESCAPE}[1;33m"
+	BLUE="${ESCAPE}[0;34m"
+	CYAN="${ESCAPE}[0;36m"
+	CLEAR="${ESCAPE}[0m"
+fi
+
+print_supported_renderers() {
+  for ((i = 0; i < ${#SUPPORTED_RENDERERS[@]}; i++)); do
+    printf "%b%s%b" "$CYAN" "${SUPPORTED_RENDERERS[$i]}" "$CLEAR"
+    [[ $i < $((${#SUPPORTED_RENDERERS[@]} - 1)) ]] && printf ", "
+  done
+}
+
+print_line() {
+  level=$1
+  message=$2
+
+  if [ -z "$message" ]; then
+    message="No message provided"
+  fi
+
+  if [ -z "$level" ]; then
+    level="info"
+  fi
+
+  case $level in
+  "info")
+    echo -e "${GREEN}>${CLEAR} $message"
+    ;;
+  "warn")
+    echo -e "${YELLOW}?${CLEAR} $message"
+    ;;
+  "error")
+    echo -e "${RED}! $message${CLEAR}"
+    exit 1
+    ;;
+  "success")
+    echo -e "${GREEN}✓${CLEAR} $message"
+    ;;
+  *)
+    echo -e "${GREEN}>${CLEAR} $message"
+    ;;
+  esac
+}
+
 usage() {
-  echo "Usage: build.sh [-r <renderer>] [-h]"
-  echo ""
-  echo "Options:"
-  echo "  -r,  --renderer <renderer>  Specify the renderer to use. Currently supported renderers are: raylib"
-  echo "  -c,  --compile              Compile the project without linking"
-  echo "  -l,  --link                 Link the compiled object files to oasis"
-  echo "  -b,  --build, (no argument) Compile and link the project"
-  echo "  -ui, --ui-debug             Enable ui debug mode"
-  echo "  -h,  --help                 Show this help message and exit"
+cat << EOF
+${BLUE}Usage${CLEAR}: build.sh [-r <renderer>] [-h]
+
+Currently supported renderers are: $(print_supported_renderers) 
+
+${GREEN}Options${CLEAR}:
+${RED}  -r --renderer ${CYAN}<renderer>${CLEAR}         Specify the renderer to use. 
+${RED}  -c --compile                   ${CLEAR}  Compile the project without linking
+${RED}  -l --link                      ${CLEAR}  Link the compiled object files to oasis
+${RED}  -b --build (no argument)       ${CLEAR}  Compile and link the project
+${RED}  -d --debug                     ${CLEAR}  Build with debug and address sanitizer enabled
+${RED}  -h --help                      ${CLEAR}  Show this help message and exit
+EOF
   exit 0
 }
 
@@ -43,7 +100,7 @@ config_compile() {
   local renderer_upper
 
   if [ -z "$RENDERER" ]; then
-    echo "No renderer specified, trying to build without renderer, this will go poorly"
+    print_line "warn" "No renderer specified, trying to build without renderer, this will go poorly"
     RENDERER="none"
   fi
 
@@ -54,8 +111,7 @@ config_compile() {
   fi
 
   if [ -z "$c_file_list" ]; then
-    echo "No C files found in ./src"
-    exit 1
+    print_line "error" "No C files found in ./src"
   fi
 
   for c_file in $c_file_list; do
@@ -65,8 +121,7 @@ config_compile() {
   if [ "$RENDERER" != "none" ]; then
     renderer_file_list=$(find "./src/renderers/$RENDERER" -name "*.c")
     if [ -z "$renderer_file_list" ]; then
-      echo "No C files found in ./src/renderers/$RENDERER"
-      exit 1
+      print_line "error" "No C files found in ./src/renderers/$RENDERER"
     fi
 
     for renderer_file in $renderer_file_list; do
@@ -79,15 +134,17 @@ config_compile() {
     LD_FLAGS+=" $renderer_ld_flag"
 
     renderer_upper=$(echo "$RENDERER" | tr '[:lower:]' '[:upper:]')
-    if [ "$UI_DEBUG" = true ]; then
-      C_FLAGS+=" -DDEBUG=1"
+    if ${DEBUG}; then
+      print_line "info" "Building with debug enabled"
+      C_FLAGS+=" -DDEBUG=1 -fsanitize=address -g"
+      LD_FLAGS+=" -fsanitize=address -static-libasan"
     fi
 
     C_FLAGS+=" -DRENDERER=$renderer_upper"
     C_FLAGS+=" $renderer_c_flag"
   fi
 
-  echo "Making build directory"
+  print_line "info" "Making build directory"
   mkdir -p ./build/bin
   mkdir -p ./build/out
 }
@@ -95,15 +152,13 @@ config_compile() {
 link_() {
   O_FILES=$(find ./build/out -name "*.o")
   if [ -z "$O_FILES" ]; then
-    echo "No object files found in ./build/out"
-    exit 1
+    print_line "error" "No object files found in ./build/out"
   fi
 
   if gcc -o "./build/bin/oasis" $O_FILES $LD_FLAGS; then
-    echo "Successfully linked object files to oasis"
+    print_line "success" "Successfully linked object files to ./build/bin/oasis"
   else
-    echo "Failed to link object files to oasis"
-    exit 1
+    print_line "error" "Failed to link object files to oasis"
   fi
 
   exit 0
@@ -116,25 +171,25 @@ build() {
 
 compile() {
   local source_file
+  local index
+  local total
 
   config_compile
 
+  total=$(echo "$C_FILES" | wc -w)
+  index=1
+
   for source_file in $C_FILES; do
-    echo "Compiling $source_file..."
+    print_line "info" "[${index}/${total}] - Compiling $source_file..."
     if gcc -c $C_FLAGS $INCLUDE_DIRS $source_file -o "./build/out/$(basename "$source_file" .c).o" $LD_FLAGS; then
-      echo "Compiled $source_file"
+      print_line "success" "[${index}/${total}] - Compiled  $source_file"
+      index=$((index + 1))
     else
-      echo "Failed to compile $source_file"
-      exit 1
+      print_line "error" "Failed to compile $source_file"
     fi
   done
 
-  echo "Done compiling!"
-}
-
-link() {
-  local object_file
-
+  print_line "success" "Done compiling!"
 }
 
 if [ $# -eq 0 ]; then
@@ -148,8 +203,8 @@ for arg in "$@"; do
     RENDERER_IDX=$((i + 1))
     RENDERER="${*:$RENDERER_IDX:1}"
     ;;
-  -ui | --ui-debug)
-    UI_DEBUG=true
+  -d | --debug)
+    DEBUG=true
     ;;
   -c | --compile)
     compile

@@ -6,7 +6,7 @@
 
 #include <oasis/utils.h>
 
-oasis_result oasis_log(FILE *file, log_level level, const char *format, ...) {
+oasis_result_t oasis_log(FILE *file, log_level level, const char *format, ...) {
   char log_buffer[2048];
   char va_buffer[1024];
   char time_buffer[32];

@@ -7,7 +7,7 @@
 /**
  * The return codes used by oasis.
  */
-typedef enum { OASIS_SUCCESS = 0, OASIS_ERROR = -1 } oasis_result;
+typedef enum { OASIS_SUCCESS = 0, OASIS_ERROR = -1 } oasis_result_t;
 
 /**
  * The log levels used by oasis_log.
@@ -30,7 +30,7 @@ typedef enum {
  * @return OASIS_SUCCESS if the message was logged successfully, OASIS_ERROR
  * otherwise.
  */
-oasis_result oasis_log(FILE *file, log_level level, const char *format, ...);
+oasis_result_t oasis_log(FILE *file, log_level level, const char *format, ...);
 
 /**
  * Handles an error from clay.
