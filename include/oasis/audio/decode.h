@@ -3,15 +3,34 @@
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include <miniaudio.h>
 
 #include <oasis/utils.h>
 
 typedef struct {
-  ma_format format;
-  ma_uint32 channels;
-  ma_uint32 sample_rate;
+  uint8_t *pcm_data;
+  size_t pcm_size;
+  size_t pcm_position;
+  int sample_rate;
+  int channels;
+  enum AVSampleFormat sample_format;
+  enum AVCodecID codec_id;
 } audio_data_t;
+
+/**
+ * Gets the name of the audio codec.
+ *
+ * @param codec_id The codec ID of the audio codec.
+ * @return The name of the audio codec.
+ */
+char *get_audio_codec_name(enum AVCodecID codec_id);
+
+/**
+ * Gets the name of the sample format.
+ *
+ * @param sample_format The sample format.
+ * @return The name of the sample format.
+ */
+char *get_sample_format_name(enum AVSampleFormat sample_format);
 
 /**
  * Decodes an audio file to PCM.
@@ -22,7 +41,7 @@ typedef struct {
  * @return OASIS_SUCCESS if the decoding was successful, OASIS_ERROR otherwise.
  */
 oasis_result_t decode_to_pcm(const char *filename, AVFrame ***frames,
-                             int *frame_count);
+                             int *frame_count, audio_data_t *audio_data);
 
 /**
  * Appends the frames to the PCM.
@@ -34,7 +53,6 @@ oasis_result_t decode_to_pcm(const char *filename, AVFrame ***frames,
  * @return OASIS_SUCCESS if the appending was successful, OASIS_ERROR otherwise.
  */
 oasis_result_t append_frames_to_pcm(AVFrame **frames, int frame_count,
-                                    uint8_t **pcm, int *pcm_size,
                                     audio_data_t *audio_data);
 
 #endif

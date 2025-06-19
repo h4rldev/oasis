@@ -42,7 +42,7 @@ oasis_result_t oasis_log(FILE *file, log_level level, const char *format, ...) {
 
   va_start(args, format);
   vsnprintf(va_buffer, sizeof(va_buffer), format, args);
-  snprintf(log_buffer, sizeof(log_buffer), "[%s] OASIS - %s: %s", time_buffer,
+  snprintf(log_buffer, sizeof(log_buffer), "[%s] OASIS - %s: %s\n", time_buffer,
            prefix, va_buffer);
 
   if (fprintf(file, "%s", log_buffer) <= 0) {

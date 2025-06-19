@@ -16,7 +16,13 @@
     clay,
   }:
     flake-utils.lib.eachDefaultSystem (system: let
-      pkgs = import nixpkgs {inherit system;};
+      pkgs = import nixpkgs {
+        inherit system;
+      };
+
+      ffmpegWithPulse = pkgs.ffmpeg-headless.override {
+        withPulse = true;
+      };
     in {
       devShells.default = pkgs.mkShell {
         packages = with pkgs; [
@@ -30,9 +36,10 @@
 
         buildInputs = with pkgs; [
           libbsd
-          ffmpeg-headless
+          ffmpegWithPulse
           raylib
           miniaudio
+          libpulseaudio
         ];
       };
     });
