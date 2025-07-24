@@ -13,12 +13,7 @@
 #include <libavdevice/avdevice.h>
 
 static const char *get_audio_device_name(const char *format_name) {
-  if (strcmp(format_name, "pulse") == 0) {
-    return NULL; // Let PulseAudio choose default
-                 // OR return "pulse"; for explicit pulse device
-  } else if (strcmp(format_name, "alsa") == 0) {
-    return "default"; // ALSA uses "default"
-  } else if (strcmp(format_name, "oss") == 0) {
+  if (strcmp(format_name, "oss") == 0) {
     return "/dev/dsp"; // OSS uses device files
   }
   return NULL;
@@ -162,7 +157,8 @@ oasis_result_t playback_play(const char *filename) {
     oasis_log(NULL, LOG_LEVEL_ERROR, "Failed to write header: %s", errbuf);
     avio_closep(&output_format_ctx->pb);
     avformat_free_context(output_format_ctx);
-    return OASIS_ERROR;
+    final_result = OASIS_ERROR;
+    goto free_pcm;
   }
 
   oasis_log(NULL, LOG_LEVEL_INFO, "Playing audio file %s, press 'q' to stop",
@@ -254,9 +250,119 @@ oasis_result_t playback_play(const char *filename) {
 
     // Check for quit input (non-blocking)
     char ch = 0;
-    if (read(STDIN_FILENO, &ch, 1) > 0 && ch == 'q') {
-      oasis_log(NULL, LOG_LEVEL_INFO, "User requested quit");
-      playing = 0;
+    if (read(STDIN_FILENO, &ch, 1) > 0) {
+      switch (ch) {
+      case 'q':
+      case 'Q':
+        oasis_log(NULL, LOG_LEVEL_INFO, "Stopping playback");
+        playing = 0;
+        break;
+      case 'p':
+      case 'P':
+        oasis_log(NULL, LOG_LEVEL_DEBUG, "Pausing playback");
+        while (1) {
+          char pause_ch = 0;
+          if (read(STDIN_FILENO, &pause_ch, 1) > 0) {
+            if (pause_ch == 'p' || pause_ch == 'P') {
+              oasis_log(NULL, LOG_LEVEL_DEBUG, "Resuming playback");
+              break; // Resume playback
+            } else if (pause_ch == 'q' || pause_ch == 'Q') {
+              oasis_log(NULL, LOG_LEVEL_DEBUG, "Stopping playback");
+              playing = 0;
+              break; // Stop playback
+            }
+          }
+        }
+        break;
+      case 'r':
+      case 'R':
+        oasis_log(NULL, LOG_LEVEL_DEBUG, "Restarting playback");
+        audio_data.pcm_position = 0;
+        packets_written = 0;
+        pts = 0; // Reset PTS
+        av_write_trailer(output_format_ctx);
+        ret = avformat_write_header(output_format_ctx, NULL);
+        if (ret < 0) {
+          char errbuf[AV_ERROR_MAX_STRING_SIZE];
+          av_strerror(ret, errbuf, sizeof(errbuf));
+          oasis_log(NULL, LOG_LEVEL_ERROR, "Failed to write header: %s", errbuf);
+          final_result = OASIS_ERROR;
+          playing = 0;
+          break;
+        }
+        break;
+      case 's':
+      case 'S':
+        oasis_log(NULL, LOG_LEVEL_DEBUG, "Skipping forward 5 seconds");
+        audio_data.pcm_position += 5 * audio_data.sample_rate *
+                                    audio_data.channels * bytes_per_sample;
+        if (audio_data.pcm_position >= audio_data.pcm_size) {
+          oasis_log(NULL, LOG_LEVEL_DEBUG, "Reached end of audio data");
+          audio_data.pcm_position = audio_data.pcm_size; // Clamp to end
+          playing = 0; // Stop playback if we reach the end
+        }
+        pts = audio_data.pcm_position / (audio_data.channels * bytes_per_sample);
+        packets_written = 0; // Reset packet count after skipping
+        av_write_trailer(output_format_ctx);
+        ret = avformat_write_header(output_format_ctx, NULL);
+        if (ret < 0) {
+          char errbuf[AV_ERROR_MAX_STRING_SIZE];
+          av_strerror(ret, errbuf, sizeof(errbuf));
+          oasis_log(NULL, LOG_LEVEL_ERROR, "Failed to write header: %s", errbuf);
+          final_result = OASIS_ERROR;
+          playing = 0;
+          break;
+        }
+        break;
+      case 'b':
+      case 'B':
+        oasis_log(NULL, LOG_LEVEL_DEBUG, "Skipping backward 5 seconds");
+        if (audio_data.pcm_position < (size_t)5 * audio_data.sample_rate *
+                                        audio_data.channels * bytes_per_sample) {
+          oasis_log(NULL, LOG_LEVEL_DEBUG, "Cannot skip backward beyond start");
+          audio_data.pcm_position = 0; // Clamp to start
+        } else {
+          audio_data.pcm_position -= 5 * audio_data.sample_rate *
+                                    audio_data.channels * bytes_per_sample;
+        }
+
+        if (audio_data.pcm_position == 0) {
+          oasis_log(NULL, LOG_LEVEL_DEBUG, "Reached start of audio data");
+          audio_data.pcm_position = 0; // Clamp to start
+        }
+
+        pts = audio_data.pcm_position / (audio_data.channels * bytes_per_sample);
+        packets_written = 0; // Reset packet count after skipping
+        av_write_trailer(output_format_ctx);
+        ret = avformat_write_header(output_format_ctx, NULL);
+        if (ret < 0) {
+          char errbuf[AV_ERROR_MAX_STRING_SIZE];
+          av_strerror(ret, errbuf, sizeof(errbuf));
+          oasis_log(NULL, LOG_LEVEL_ERROR, "Failed to write header: %s", errbuf);
+          final_result = OASIS_ERROR;
+          playing = 0;
+          break;
+        }
+        break;
+      case 'h':
+      case 'H':
+        oasis_log(NULL, LOG_LEVEL_INFO,
+                  "Playback controls:\n"
+                  "  q/Q: Quit playback\n"
+                  "  p/P: Pause/Resume playback\n"
+                  "  r/R: Restart playback\n"
+                  "  s/S: Skip forward 5 seconds\n"
+                  "  b/B: Skip backward 5 seconds\n"
+                  "  h/H: Show this help message");
+        break;
+      case '\n':
+      case '\r':
+        // Ignore newline characters
+        break;
+      default:
+        oasis_log(NULL, LOG_LEVEL_WARN, "Unknown command '%c', ignoring", ch);
+        break;
+      }
     }
 
     // Reduce the delay - 10ms might be too much

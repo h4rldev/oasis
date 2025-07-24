@@ -1,5 +1,6 @@
 #include <clay.h>
 
+#include <oasis/ui/arena.h>
 #include <oasis/ui/layout.h>
 #include <oasis/utils.h>
 #include <stdio.h>
@@ -190,11 +191,14 @@ Clay_RenderCommandArray layout(void) {
         text(CLAY_STRING("!"), white);
         CLAY({
           .id = CLAY_ID("play-button"),
+          .cornerRadius =
+            {.bottomLeft = 5, .bottomRight = 5, .topLeft = 5, .topRight = 5},
           .layout =
             {
               .childAlignment = {.y = CLAY_ALIGN_Y_CENTER,
                                  .x = CLAY_ALIGN_X_CENTER},
-              .sizing = {.width = CLAY_SIZING_PERCENT(1.0)},
+              .sizing = {.width = CLAY_SIZING_FIXED(10),
+                         .height = CLAY_SIZING_FIXED(10)},
             },
           .backgroundColor = holding ? gray : white,
           .border =
@@ -211,14 +215,12 @@ Clay_RenderCommandArray layout(void) {
         }) {
           Clay_OnHover(handle_play_button_hover, 0);
 
-          CLAY_TEXT(CLAY_STRING("Play"), CLAY_TEXT_CONFIG({
-                                           .fontId = 0,
-                                           .fontSize = 32,
-                                           .textColor = holding ? white : gray,
-                                         }));
+          CLAY({.image = {.imageData = alloc_arena(sizeof(Clay_String),
+                                                   "./resources/play.png")}}) {
 
-          if (pressed2) {
-            printf("pressed2\n");
+            if (pressed2) {
+              printf("pressed2\n");
+            }
           }
         }
       };

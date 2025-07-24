@@ -15,7 +15,9 @@ LD_FLAGS="-lm -lbsd $(pkg-config --libs libavcodec libavformat libavutil libavde
 INCLUDE_DIRS="-I./include"
 C_FILES=""
 O_FILES=""
+TEST=""
 DEBUG=false
+TESTING=false
 
 # Planned renderers are: raylib, sdl2, sdl3, sokol, vulkan, cairo, wasm
 SUPPORTED_RENDERERS=("raylib")
@@ -74,15 +76,16 @@ usage() {
 	cat <<EOF
 ${BLUE}Usage${CLEAR}: build.sh [-r <renderer>] [-h]
 
-Currently supported renderers are: $(print_supported_renderers) 
+Currently supported renderers are: $(print_supported_renderers)
 
 ${GREEN}Options${CLEAR}:
-${RED}  -r --renderer ${CYAN}<renderer>${CLEAR}         Specify the renderer to use. 
+${RED}  -r --renderer ${CYAN}<renderer>${CLEAR}         Specify the renderer to use.
 ${RED}  -c --compile                   ${CLEAR}  Compile the project without linking
 ${RED}  -l --link                      ${CLEAR}  Link the compiled object files to oasis
 ${RED}  -b --build (no argument)       ${CLEAR}  Compile and link the project
 ${RED}  -d --debug                     ${CLEAR}  Build with debug and address sanitizer enabled
 ${RED}  -h --help                      ${CLEAR}  Show this help message and exit
+${RED}  -t --test                      ${CLEAR}  Build and run tests
 EOF
 	exit 0
 }
@@ -99,16 +102,34 @@ config_compile() {
 
 	local renderer_upper
 
+	if $TESTING; then
+	  if [ -z "$TEST" ]; then
+      print_line "error" "No test specified, please specify a test to run with -t <test>"
+    fi
+
+    if [ ! -f "./tests/$TEST.c" ]; then
+      print_line "info" "Available tests are: $(find ./tests -maxdepth 1 -type f -name "*.c" | sed 's|./tests/||' | sed 's|\.c||')"
+      print_line "error" "Test file ./tests/$TEST.c does not exist"
+    fi
+  fi
+
 	if [ -z "$RENDERER" ]; then
 		print_line "warn" "No renderer specified, trying to build without renderer, this will go poorly"
 		RENDERER="none"
 	fi
 
 	if [ "$RENDERER" != "none" ]; then
-		c_file_list=$(find ./src -type f -name "*.c" ! -path "./src/renderers/*/*")
+		c_file_list=$(find ./src -type f -name "*.c" ! -path "./src/renderers/*/*" ! -path "./src/main.c")
 	else
-		c_file_list=$(find ./src -type f -name "*.c" ! -path "./src/renderers/*/*" ! -path "./src/renderers/*")
+		c_file_list=$(find ./src -type f -name "*.c" ! -path "./src/renderers/*/*" ! -path "./src/renderers/*" ! -path "./src/main.c")
 	fi
+
+	if [[ $TESTING == false ]]; then
+    c_file_list+=" ./src/main.c"
+  else
+    c_file_list+=" ./tests/test_utils/test_utils.c"
+    c_file_list+=" ./tests/$TEST.c"
+  fi
 
 	if [ -z "$c_file_list" ]; then
 		print_line "error" "No C files found in ./src"
@@ -144,29 +165,42 @@ config_compile() {
 		C_FLAGS+=" $renderer_c_flag"
 	fi
 
+	if $TESTING; then
+    LD_FLAGS+=" -lunity"
+    C_FLAGS+=" -I./tests/test_utils"
+    mkdir -p ./build/tests
+  fi
+
 	print_line "info" "Making build directory"
 	mkdir -p ./build/bin
 	mkdir -p ./build/out
 }
 
 link_() {
+  if ${TESTING}; then
+    rm -f ./build/out/main.o
+  fi
+
 	O_FILES=$(find ./build/out -name "*.o")
+
 	if [ -z "$O_FILES" ]; then
 		print_line "error" "No object files found in ./build/out"
 	fi
 
-	if gcc -o "./build/bin/oasis" $O_FILES $LD_FLAGS; then
-		print_line "success" "Successfully linked object files to ./build/bin/oasis"
+	if ${TESTING}; then
+		if gcc -o "./build/tests/$TEST" $O_FILES $LD_FLAGS; then
+			print_line "success" "Successfully linked object files to ./build/tests/$TEST"
+		else
+			print_line "error" "Failed to link object files to oasis"
+		fi
 	else
-		print_line "error" "Failed to link object files to oasis"
+	  if gcc -o "./build/bin/oasis" $O_FILES $LD_FLAGS; then
+			print_line "success" "Successfully linked object files to ./build/bin/oasis"
+		else
+			print_line "error" "Failed to link object files to oasis"
+		fi
+		exit 0
 	fi
-
-	exit 0
-}
-
-build() {
-	compile
-	link_
 }
 
 compile() {
@@ -192,11 +226,31 @@ compile() {
 	print_line "success" "Done compiling!"
 }
 
+build_n_run_test() {
+  compile
+  link_
+
+  print_line "info" "Running test: $TEST"
+  OASIS_LOG_LEVEL=DEBUG ./build/tests/$TEST
+  if [ $? -eq 0 ]; then
+    print_line "success" "Test $TEST passed"
+  else
+    print_line "error" "Test $TEST failed"
+  fi
+  exit 0
+}
+
+build() {
+	compile
+	link_
+}
+
+
 if [ $# -eq 0 ]; then
 	build
 fi
 
-i=0
+i=1
 for arg in "$@"; do
 	case $arg in
 	-r | --renderer)
@@ -205,6 +259,12 @@ for arg in "$@"; do
 		;;
 	-d | --debug)
 		DEBUG=true
+		;;
+	-t | --test)
+	  TESTING=true
+		TEST_IDX=$((i + 1))
+		TEST="${*:$TEST_IDX:1}"
+	  build_n_run_test
 		;;
 	-c | --compile)
 		compile

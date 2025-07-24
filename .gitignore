@@ -3,3 +3,4 @@
 build/
 compile_commands.json
 resources/*.flac
+resources/test_files/*

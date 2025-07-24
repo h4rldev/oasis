@@ -39,6 +39,7 @@
           ffmpegWithPulse
           raylib
           miniaudio
+          unity-test
           libpulseaudio
         ];
       };
